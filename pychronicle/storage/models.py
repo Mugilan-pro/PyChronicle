@@ -56,7 +56,8 @@ class TraceEvent:
         event_type: 'line', 'call', 'return', or 'exception'.
         timestamp: System time when the event occurred.
         is_delta: Flag indicating whether 'state' is a full snapshot (False)
-                  Flag for delta compression optimization.
+                  or only variables mutated at this line (True).
+                  Reserved for seamless Week 3 delta compression.
         id: Primary key assigned by SQLite upon persistence.
     """
     execution_id: int

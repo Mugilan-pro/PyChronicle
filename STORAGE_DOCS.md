@@ -2,7 +2,7 @@
 
 ## 1. Architecture Overview
 
-PyChronicle records runtime variable state at every line of Python execution without modifying source code. The Storage Subsystem provides a clean, zero-SQL interface for Member 1's AST Rewriter & Tracer engine and the Textual TUI.
+PyChronicle records runtime variable state at every line of Python execution without modifying source code. The Storage Subsystem provides a clean, zero-SQL interface for the Tracer engine (Member 2) and the Textual TUI (Member 1 & 2).
 
 ```
 ┌─────────────────────────────────┐
@@ -52,7 +52,7 @@ Tracks each line executed in chronological order.
 - `function_name`: TEXT NOT NULL DEFAULT '<module>'
 - `event_type`: TEXT NOT NULL DEFAULT 'line'
 - `timestamp`: REAL NOT NULL
-- `is_delta`: INTEGER NOT NULL DEFAULT 0 (Delta optimization flag)
+- `is_delta`: INTEGER NOT NULL DEFAULT 0 (Hook for Week 3)
 - `UNIQUE(execution_id, sequence)`
 
 ### `variable_states`
