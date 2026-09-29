@@ -1,107 +1,96 @@
-"""Unit tests for PyChronicle ExecutionTracer (Week 2 Core Engineering)."""
+from pathlib import Path
 
 import pytest
-from pychronicle.storage import StorageManager
-from pychronicle.tracer.engine import ExecutionTracer
-from pychronicle.tracer.filter import TraceFilter
+
+from pychronicle.storage.database import SQLiteStore
+from pychronicle.tracer.engine import run_script
 
 
-def test_tracer_records_simple_script():
-    storage = StorageManager(":memory:")
-    storage.start_execution("test_simple.py")
-
-    tracer = ExecutionTracer(
-        storage=storage,
-        trace_filter=TraceFilter(target_files=["test_simple.py"]),
+def test_tracer_records_loop_iterations_and_mutable_container_changes(tmp_path) -> None:
+    script = tmp_path / "loop_target.py"
+    database = tmp_path / "trace.sqlite3"
+    script.write_text(
+        "values = []\n"
+        "for number in range(3):\n"
+        "    values.append(number)\n"
+        "total = sum(values)\n",
+        encoding="utf-8",
     )
 
-    code = """
-a = 10
-b = 20
-c = a + b
-"""
-    recorded = tracer.run_code(code, filename="test_simple.py")
-    assert recorded >= 3
-    assert tracer.dropped_frames == 0
-
-    events = storage.get_events()
-    assert len(events) >= 3
-
-    # Check last state
-    final_event = events[-1]
-    assert final_event.state.get("a") == 10
-    assert final_event.state.get("b") == 20
-    assert final_event.state.get("c") == 30
+    store = run_script(script, database=database)
+    try:
+        events = store.events()
+        value_changes = [event for event in events if "values" in event.changes]
+        assert len(events) >= 10
+        assert [event.changes["values"] for event in value_changes] == [
+            [],
+            [0],
+            [0, 1],
+            [0, 1, 2],
+        ]
+        assert value_changes[1].line_number == 3
+        assert any(event.changes.get("total") == 3 for event in events)
+    finally:
+        store.close()
 
 
-def test_tracer_captures_function_calls_and_returns():
-    storage = StorageManager(":memory:")
-    storage.start_execution("test_func.py")
+def test_tracer_scopes_locals_to_call_frames_and_forwards_argv(tmp_path) -> None:
+    script = tmp_path / "nested_target.py"
+    script.write_text(
+        "import sys\n"
+        "def twice(value):\n"
+        "    result = value * 2\n"
+        "    return result\n"
+        "answer = twice(int(sys.argv[1]))\n",
+        encoding="utf-8",
+    )
+    store = run_script(script, ["21"])
+    try:
+        events = store.events()
+        function_events = [event for event in events if event.function_name == "twice"]
+        module_events = [event for event in events if event.function_name == "<module>"]
+        assert function_events and module_events
+        assert function_events[0].frame_id != module_events[0].frame_id
+        assert any(event.changes.get("answer") == 42 for event in module_events)
+    finally:
+        store.close()
 
-    tracer = ExecutionTracer(
-        storage=storage,
-        trace_filter=TraceFilter(target_files=["test_func.py"]),
+
+def test_tracer_records_global_mutations_from_function_frames(tmp_path) -> None:
+    script = tmp_path / "global_target.py"
+    script.write_text(
+        "counter = 0\n"
+        "def increment():\n"
+        "    global counter\n"
+        "    counter += 1\n"
+        "increment()\n",
+        encoding="utf-8",
     )
 
-    code = """
-def add(x, y):
-    return x + y
-
-val = add(3, 7)
-"""
-    tracer.run_code(code, filename="test_func.py")
-    events = storage.get_events()
-
-    event_types = [ev.event_type for ev in events]
-    assert "call" in event_types
-    assert "return" in event_types
-    assert "line" in event_types
-
-    # Find the return event
-    ret_events = [ev for ev in events if ev.event_type == "return" and ev.function_name == "add"]
-    assert len(ret_events) == 1
-    assert ret_events[0].state.get("__return__") == 10
+    store = run_script(script)
+    try:
+        function_events = [event for event in store.events() if event.function_name == "increment"]
+        assert any(event.changes.get("global:counter") == 1 for event in function_events)
+        changed = next(
+            event
+            for event in function_events
+            if event.changes.get("global:counter") == 1
+        )
+        assert store.state_at(changed.id, changed.frame_id)["global:counter"] == 1
+    finally:
+        store.close()
 
 
-def test_tracer_captures_exceptions():
-    storage = StorageManager(":memory:")
-    storage.start_execution("test_exc.py")
+def test_failed_run_is_persisted_and_exception_is_not_hidden(tmp_path) -> None:
+    script = tmp_path / "failure_target.py"
+    database = tmp_path / "failed.sqlite3"
+    script.write_text("before_error = 1\nraise RuntimeError('expected')\n", encoding="utf-8")
 
-    tracer = ExecutionTracer(
-        storage=storage,
-        trace_filter=TraceFilter(target_files=["test_exc.py"]),
-    )
+    with pytest.raises(RuntimeError, match="expected"):
+        run_script(script, database=database)
 
-    code = """
-try:
-    x = 1 / 0
-except ZeroDivisionError:
-    handled = True
-"""
-    tracer.run_code(code, filename="test_exc.py")
-    events = storage.get_events()
-
-    exc_events = [ev for ev in events if ev.event_type == "exception"]
-    assert len(exc_events) >= 1
-    assert "ZeroDivisionError" in exc_events[0].state.get("__exception__", "")
-
-
-def test_tracer_filters_dunders():
-    storage = StorageManager(":memory:")
-    storage.start_execution("test_dunder.py")
-
-    tracer = ExecutionTracer(
-        storage=storage,
-        trace_filter=TraceFilter(target_files=["test_dunder.py"]),
-        filter_dunders=True,
-    )
-
-    code = """
-my_var = "clean"
-"""
-    tracer.run_code(code, filename="test_dunder.py")
-    events = storage.get_events()
-    for ev in events:
-        for k in ev.state.keys():
-            assert not k.startswith("__builtins__")
-            assert not k.startswith("__doc__")
+    with SQLiteStore(database) as store:
+        run_id = store.run_ids()[0]
+        assert store.run_info(run_id)["status"] == "failed"
+        assert "RuntimeError: expected" in store.run_info(run_id)["error"]
+        assert store.events(run_id)
