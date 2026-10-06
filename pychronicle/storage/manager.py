@@ -11,7 +11,9 @@ import time
 from typing import Any, Dict, List, Optional
 
 from pychronicle.storage.database import Database
+from pychronicle.storage.delta import DeltaCalculator, StateDelta
 from pychronicle.storage.models import ExecutionRecord, TraceEvent, VariableState
+from pychronicle.storage.reconstructor import StateReconstructor
 from pychronicle.storage.serializer import ValueSerializer, deserialize, serialize
 
 
@@ -33,16 +35,26 @@ class StorageManager:
         self,
         db_path: str = ":memory:",
         serializer: Optional[ValueSerializer] = None,
+        enable_delta: bool = False,
+        checkpoint_interval: int = 50,
     ) -> None:
         """Initialize the storage manager with a database and serializer.
         
         Args:
             db_path: Path to SQLite DB file or ':memory:'.
             serializer: Optional custom ValueSerializer instance.
+            enable_delta: When True, uses Delta Compression to store only variable mutations.
+            checkpoint_interval: Frequency of full keyframe snapshots when delta compression is on.
         """
         self.db = Database(db_path)
         self.serializer = serializer or ValueSerializer()
+        self.enable_delta = enable_delta
+        self.checkpoint_interval = checkpoint_interval
+        self.delta_calculator = DeltaCalculator(self.serializer)
+        self.reconstructor = StateReconstructor(self.db, self.serializer)
+        self._prev_serialized: Dict[str, Tuple[str, str]] = {}
         self.active_execution_id: Optional[int] = None
+        self.last_execution_id: Optional[int] = None
         self._sequence_counter: int = 0
 
     def start_execution(
@@ -68,7 +80,9 @@ class StorageManager:
             metadata=metadata or {},
         )
         self.active_execution_id = self.db.insert_execution(record)
+        self.last_execution_id = self.active_execution_id
         self._sequence_counter = 0
+        self._prev_serialized = {}
         return self.active_execution_id
 
     def record_event(
@@ -87,7 +101,7 @@ class StorageManager:
             state: Dictionary mapping variable names to their current Python values.
             function_name: Name of the enclosing function (default: '<module>').
             event_type: 'line', 'call', 'return', or 'exception'.
-            is_delta: Set to True when delta compression is enabled (Week 3 hook).
+            is_delta: Set to True when delta compression is enabled.
             sequence: Optional explicit sequence number. If omitted, auto-increments.
             
         Returns:
@@ -112,7 +126,26 @@ class StorageManager:
         var_states: List[VariableState] = []
         state_dict = state or {}
 
-        for var_name, var_value in state_dict.items():
+        if self.enable_delta:
+            is_keyframe = (seq == 1) or (seq % self.checkpoint_interval == 0)
+            if is_keyframe:
+                event_is_delta = False
+                state_to_record = state_dict
+                self._prev_serialized = {
+                    k: self.serializer.serialize(v) for k, v in state_dict.items()
+                }
+            else:
+                event_is_delta = True
+                delta, new_serialized = self.delta_calculator.compute_diff(
+                    self._prev_serialized, state_dict
+                )
+                self._prev_serialized = new_serialized
+                state_to_record = delta.mutations
+        else:
+            event_is_delta = is_delta
+            state_to_record = state_dict
+
+        for var_name, var_value in state_to_record.items():
             payload, val_type = self.serializer.serialize(var_value)
             var_states.append(
                 VariableState(
@@ -129,7 +162,7 @@ class StorageManager:
             function_name=function_name,
             event_type=event_type,
             state=state_dict,
-            is_delta=is_delta,
+            is_delta=event_is_delta,
         )
 
         event_id = self.db.insert_event_with_variables(event, var_states)
@@ -139,23 +172,24 @@ class StorageManager:
     def get_event(self, event_id: int) -> Optional[TraceEvent]:
         """Fetch a specific event by ID, deserializing its variables into .state.
         
-        Accepts:
-            event_id: Database primary key ID of the event.
-            
-        Returns:
-            TraceEvent with deserialized .state dictionary, or None if not found.
+        If delta compression was active, reconstructs the full state dynamically.
         """
         result = self.db.get_event_with_variables(event_id)
         if not result:
             return None
 
         event, var_states = result
-        restored_state: Dict[str, Any] = {}
-        for v in var_states:
-            restored_state[v.var_name] = self.serializer.deserialize(
-                v.serialized_value, v.value_type
+        if event.is_delta:
+            event.state = self.reconstructor.reconstruct_state_at_sequence(
+                event.execution_id, event.sequence
             )
-        event.state = restored_state
+        else:
+            restored_state: Dict[str, Any] = {}
+            for v in var_states:
+                restored_state[v.var_name] = self.serializer.deserialize(
+                    v.serialized_value, v.value_type
+                )
+            event.state = restored_state
         return event
 
     def get_events(
@@ -172,14 +206,18 @@ class StorageManager:
             end_sequence: Optional ending sequence number (inclusive).
             
         Returns:
-            List of TraceEvents, each populated with its deserialized .state dictionary.
-            
-        DB Operation:
-            Indexed batch SELECT from trace_events and variable_states.
+            List of TraceEvents, each populated with its full reconstructed .state dictionary.
         """
-        exec_id = execution_id or self.active_execution_id
+        exec_id = execution_id or self.active_execution_id or self.last_execution_id
         if exec_id is None:
             return []
+
+        if self.enable_delta:
+            return self.reconstructor.hydrate_all_events(
+                execution_id=exec_id,
+                start_sequence=start_sequence,
+                end_sequence=end_sequence,
+            )
 
         raw_events = self.db.get_events_for_execution(
             execution_id=exec_id,
@@ -198,6 +236,17 @@ class StorageManager:
             hydrated_events.append(ev)
 
         return hydrated_events
+
+    def reconstruct_state(
+        self,
+        sequence: int,
+        execution_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Reconstruct the complete variable dictionary at a given sequence step."""
+        exec_id = execution_id or self.active_execution_id or self.last_execution_id
+        if exec_id is None:
+            return {}
+        return self.reconstructor.reconstruct_state_at_sequence(exec_id, sequence)
 
     def get_execution(self, execution_id: Optional[int] = None) -> Optional[ExecutionRecord]:
         """Retrieve execution metadata."""

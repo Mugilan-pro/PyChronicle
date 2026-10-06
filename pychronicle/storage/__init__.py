@@ -1,12 +1,14 @@
 """PyChronicle Storage & Delta subsystem.
 
 Exposes data models, database connection management, serialization,
-and high-level storage coordination.
+delta compression, and high-level storage coordination.
 """
 
 from pychronicle.storage.database import Database
+from pychronicle.storage.delta import DeltaCalculator, StateDelta
 from pychronicle.storage.manager import StorageManager
 from pychronicle.storage.models import ExecutionRecord, TraceEvent, VariableState
+from pychronicle.storage.reconstructor import StateReconstructor
 from pychronicle.storage.serializer import (
     ValueSerializer,
     deserialize,
@@ -15,7 +17,10 @@ from pychronicle.storage.serializer import (
 
 __all__ = [
     "Database",
+    "DeltaCalculator",
     "ExecutionRecord",
+    "StateDelta",
+    "StateReconstructor",
     "StorageManager",
     "TraceEvent",
     "ValueSerializer",

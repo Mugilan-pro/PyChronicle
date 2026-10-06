@@ -102,23 +102,58 @@ for ev in events:
 # 5. TUI Watch Variable: Query a single variable's timeline
 history = storage.get_variable_history("total")
 # Returns: [{'sequence': 1, 'line_number': 10, 'value': 100, ...}]
+
+# 6. Week 3 Delta Compression Mode (Saves ~90% storage)
+delta_storage = StorageManager("trace.db", enable_delta=True, checkpoint_interval=50)
+delta_storage.start_execution("my_script.py")
+# Records only variables that mutated on each line!
+delta_storage.record_event(line_number=11, state={"x": 5, "total": 105})
+delta_storage.finish_execution()
+
+# 7. State Reconstruction: Rebuild full variable dictionary at any step
+full_state = delta_storage.reconstruct_state(sequence=15)
 ```
 
 ---
 
-## 4. Commands to Run Tests and Benchmarks
+## 4. Week 4: Command-Line Interface (CLI)
 
-### Run Unit Tests
+PyChronicle includes a command-line tool for tracing and inspecting scripts:
+
+```cmd
+# Trace any Python script
+python -m pychronicle run my_script.py --db trace.db
+
+# Inspect sessions inside a trace database
+python -m pychronicle info trace.db
+
+# View chronological events
+python -m pychronicle view trace.db --limit 20
+
+# Watch a specific variable across time
+python -m pychronicle view trace.db --var total
+```
+
+---
+
+## 5. Commands to Run Tests and Benchmarks
+
+### Run Unit Tests (All 9 Modules)
 ```cmd
 python -m pytest -v
 ```
 
-### Run 1k & 10k Performance Benchmark
-```cmd
-python benchmark.py
-```
-
-### Run Interactive Demo
+### Run Weeks 1 & 2 Demo
 ```cmd
 python demo_phase1_phase2.py
+```
+
+### Run Weeks 3 & 4 Demo (Delta Compression & CLI)
+```cmd
+python demo_weeks3_and_4.py
+```
+
+### Run Performance Benchmark
+```cmd
+python benchmark.py
 ```

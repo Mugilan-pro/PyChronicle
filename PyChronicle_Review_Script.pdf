@@ -1,0 +1,403 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 6 0 R 9 0 R 12 0 R] /Count 4 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources 5 0 R >>
+endobj
+5 0 obj
+<< /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> /F3 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >> /F4 << /Type /Font /Subtype /Type1 /BaseFont /Courier >> >> >>
+endobj
+4 0 obj
+<< /Length 2700 >>
+stream
+BT
+/F2 18 Tf
+50 790 Td
+(PyChronicle - Review Presentation Script & Beginner Guide) Tj
+0 -22 Td
+/F2 11 Tf
+(Author: Sujith Singh | Role: Member 3 - Storage & Delta | Weeks 1 & 2) Tj
+0 -18 Td
+/F1 10 Tf
+(==================================================================================) Tj
+0 -20 Td
+/F2 12 Tf
+(FLOWCHART: HOW THE SYSTEM WORKS TOGETHER) Tj
+0 -16 Td
+/F4 9 Tf
+([User Code to Trace] -> [Member 1: AST] -> [Member 2: Tracer (sys.settrace)]) Tj
+0 -12 Td
+(                                              |) Tj
+0 -12 Td
+(                                              v passes line & local variables) Tj
+0 -12 Td
+(+-------------------------------------------------------------------------------+ ) Tj
+0 -12 Td
+(| MEMBER 3: STORAGE & DELTA (YOUR SUBSYSTEM!)                                  | ) Tj
+0 -12 Td
+(|   [manager.py]     <-- The 'Remote Control'                                   | ) Tj
+0 -12 Td
+(|         |                                                                     | ) Tj
+0 -12 Td
+(|         +---> [serializer.py] <-- 'Translator' (cleans objects, catches cycles)| ) Tj
+0 -12 Td
+(|         |                                                                     | ) Tj
+0 -12 Td
+(|         v                                                                     | ) Tj
+0 -12 Td
+(|   [database.py]    <-- 'Filing Cabinet' (saves in strict 1,2,3 order)        | ) Tj
+0 -12 Td
+(|         |                                                                     | ) Tj
+0 -12 Td
+(|         v [SQLite Database: trace.db / :memory:]                              | ) Tj
+0 -12 Td
+(+-------------------------------------------------------------------------------+ ) Tj
+0 -12 Td
+(                                              |) Tj
+0 -12 Td
+(                                              v provides events & variable history) Tj
+0 -12 Td
+(                                   [Member 4: Textual UI Slider]) Tj
+0 -22 Td
+/F1 10 Tf
+(==================================================================================) Tj
+0 -20 Td
+/F2 12 Tf
+(SECTION 1: WORD-FOR-WORD 30-SECOND PITCH) Tj
+0 -16 Td
+/F3 9.5 Tf
+("Good morning evaluators! My name is Sujith Singh, Member 3 on Team PyChronicle,) Tj
+0 -13 Td
+( responsible for the Storage & Delta Subsystem.) Tj
+0 -13 Td
+( Standard debuggers are linear: if a bug happens on line 50, you must restart from zero.) Tj
+0 -13 Td
+( PyChronicle allows developers to scrub backward and forward through time like a video player.) Tj
+0 -13 Td
+( My responsibility is the Data Engine: saving every line executed and variable state into) Tj
+0 -13 Td
+( SQLite in strict sequence order, safely converting complex objects without crashing, and) Tj
+0 -13 Td
+( providing a clean, zero-SQL API for my teammates.) Tj
+0 -13 Td
+( All 26 automated unit tests pass, and our benchmark handles 10,000 events at >20k/sec.") Tj
+0 -20 Td
+/F2 11 Tf
+(LIVE DEMO IN VS CODE (3 COMMANDS IN ORDER):) Tj
+0 -14 Td
+/F2 9.5 Tf
+(  1. python demo_phase1_phase2.py   (Visual demo showing time-travel & watch table)) Tj
+0 -13 Td
+(  2. python -m pytest -v            (Runs all 26 automated tests -> all green PASSED)) Tj
+0 -13 Td
+(  3. python benchmark.py            (Performance stress test: >20,000 events/second)) Tj
+0 -24 Td
+/F1 9 Tf
+(Page 1 of 4                                                        PyChronicle Member 3 Guide) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 7 0 R /Resources 5 0 R >>
+endobj
+7 0 obj
+<< /Length 2700 >>
+stream
+BT
+/F2 13 Tf
+50 790 Td
+(SECTION 2: HOW TEAMMATES BENEFIT FROM MY WORK) Tj
+0 -20 Td
+/F1 10 Tf
+(When evaluators ask: 'How does your work connect with the rest of the team?') Tj
+0 -20 Td
+/F2 11 Tf
+(1. Member 2 - Execution Tracer (The 'Camera')) Tj
+0 -14 Td
+/F1 9.5 Tf
+(   * Benefit: Member 2 does not need to learn SQL, handle database locks, or worry about) Tj
+0 -13 Td
+(     serializing tricky Python objects.) Tj
+0 -13 Td
+(   * In their sys.settrace callback, they simply write ONE line:) Tj
+0 -14 Td
+/F2 9.5 Tf
+(       storage.record_event(line_number=frame.f_lineno, state=frame.f_locals)) Tj
+0 -14 Td
+/F1 9.5 Tf
+(   * My engine handles transactions, serialization, and disk saving invisibly.) Tj
+0 -18 Td
+/F2 11 Tf
+(2. Member 4 - Textual UI (The 'Screen / Video Player')) Tj
+0 -14 Td
+/F1 9.5 Tf
+(   * Benefit: Member 4 does not need to parse memory dumps or raw files.) Tj
+0 -13 Td
+(   * They simply call my clean retrieval methods to power their widgets:) Tj
+0 -14 Td
+/F2 9.5 Tf
+(       events = storage.get_events()                  # Feeds the timeline slider) Tj
+0 -13 Td
+(       history = storage.get_variable_history("x")    # Feeds Watch Variable panel) Tj
+0 -14 Td
+/F1 9.5 Tf
+(   * My batch querying fetches all data in 2 queries, so their UI never freezes.) Tj
+0 -18 Td
+/F2 11 Tf
+(3. Member 1 - AST Rewriter (The 'Highlighter')) Tj
+0 -14 Td
+/F1 9.5 Tf
+(   * Injected code flows through Member 2's tracer and is guaranteed to be stored) Tj
+0 -13 Td
+(     deterministically by my sequence ordering engine.) Tj
+0 -22 Td
+/F1 10 Tf
+(==================================================================================) Tj
+0 -20 Td
+/F2 13 Tf
+(SECTION 3: SUPER SIMPLE FILE-BY-FILE BREAKDOWN (PART 1)) Tj
+0 -18 Td
+/F2 11 Tf
+(1. pychronicle/storage/models.py) Tj
+0 -13 Td
+/F3 9.5 Tf
+(   Real-Life Analogy: The 'Identity Card / Passport') Tj
+0 -13 Td
+/F1 9.5 Tf
+(   * What problem it solves: Prevents passing messy dictionaries with random keys.) Tj
+0 -13 Td
+(   * What it actually does: Creates clean, official blueprints for data in memory:) Tj
+0 -13 Td
+(       - ExecutionRecord: Stores the script name and start time.) Tj
+0 -13 Td
+(       - TraceEvent: Stores one line hit (e.g. Line 10, Step 1).) Tj
+0 -13 Td
+(       - VariableState: Stores one variable name and its value (e.g. x = 5).) Tj
+0 -13 Td
+(   * Week 3 Hook: Added is_delta: bool = False to support delta compression smoothly.) Tj
+0 -18 Td
+/F2 11 Tf
+(2. pychronicle/storage/serializer.py) Tj
+0 -13 Td
+/F3 9.5 Tf
+(   Real-Life Analogy: The 'Translator & Airport Security') Tj
+0 -13 Td
+/F1 9.5 Tf
+(   * What problem it solves: SQLite only understands plain text and numbers. Complex) Tj
+0 -13 Td
+(     Python objects or circular lists like a = [a] cause standard tools to crash.) Tj
+0 -13 Td
+(   * What it actually does:) Tj
+0 -13 Td
+(       - Converts numbers, strings, and lists into safe JSON text strings.) Tj
+0 -13 Td
+(       - Cycle Detection: Tracks memory IDs (id(obj)) so circular references like a=[a]) Tj
+0 -13 Td
+(         are safely labeled '<CircularReference>' instead of crashing with infinite recursion.) Tj
+0 -13 Td
+(       - Safe Fallbacks: Safely converts open files, sockets, and functions to clean labels.) Tj
+0 -24 Td
+/F1 9 Tf
+(Page 2 of 4                                                        PyChronicle Member 3 Guide) Tj
+ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 9 0 R /Resources 5 0 R >>
+endobj
+9 0 obj
+<< /Length 2650 >>
+stream
+BT
+/F2 13 Tf
+50 790 Td
+(SECTION 3: SUPER SIMPLE FILE-BY-FILE BREAKDOWN (PART 2)) Tj
+0 -20 Td
+/F2 11 Tf
+(3. pychronicle/storage/database.py) Tj
+0 -13 Td
+/F3 9.5 Tf
+(   Real-Life Analogy: The 'Indestructible Filing Cabinet') Tj
+0 -13 Td
+/F1 9.5 Tf
+(   * What problem it solves: Saves thousands of steps without corrupting data or freezing.) Tj
+0 -13 Td
+(   * What it actually does:) Tj
+0 -13 Td
+(       - Strict Sequence (1, 2, 3...): Monotonic counter ensures time-travel order is 100% exact.) Tj
+0 -13 Td
+(       - WAL Mode: Write-Ahead Logging lets the UI read while the tracer writes simultaneously.) Tj
+0 -13 Td
+(       - Atomic Transactions: Event and variables save together; if one fails, it rolls back.) Tj
+0 -13 Td
+(       - Batch Querying: Fetches 1,000 events in 2 queries instead of 1,001 (solves N+1 problem).) Tj
+0 -18 Td
+/F2 11 Tf
+(4. pychronicle/storage/manager.py) Tj
+0 -13 Td
+/F3 9.5 Tf
+(   Real-Life Analogy: The 'TV Remote Control') Tj
+0 -13 Td
+/F1 9.5 Tf
+(   * What problem it solves: Keeps our teammates from ever having to write SQL queries.) Tj
+0 -13 Td
+(   * What it actually does: Provides clean, easy buttons for teammates:) Tj
+0 -13 Td
+(       - start_execution(): Starts a new debugging session.) Tj
+0 -13 Td
+(       - record_event(): Automatically serializes variables and saves to SQLite.) Tj
+0 -13 Td
+(       - get_events(): Fetches and unpacks all steps for the timeline slider.) Tj
+0 -13 Td
+(       - get_variable_history(): Queries the timeline of a variable for the Watch window.) Tj
+0 -18 Td
+/F2 11 Tf
+(5. pychronicle/storage/mock_tracer.py) Tj
+0 -13 Td
+/F3 9.5 Tf
+(   Real-Life Analogy: The 'Stunt Double') Tj
+0 -13 Td
+/F1 9.5 Tf
+(   * What problem it solves: Let us test storage before Member 2 finished their real tracer.) Tj
+0 -13 Td
+(   * What it actually does: Generates fake execution loops and variable mutations.) Tj
+0 -18 Td
+/F2 11 Tf
+(6. tests/ - Automated Test Suite (26 Tests)) Tj
+0 -13 Td
+/F3 9.5 Tf
+(   Real-Life Analogy: The 'Factory Quality & Safety Inspection') Tj
+0 -13 Td
+/F1 9.5 Tf
+(   * Runs 26 automated tests verifying database schema, transactions, sequence uniqueness,) Tj
+0 -13 Td
+(     circular references, unpicklable objects, and persistent disk reloading.) Tj
+0 -18 Td
+/F2 11 Tf
+(7. benchmark.py) Tj
+0 -13 Td
+/F3 9.5 Tf
+(   Real-Life Analogy: The 'High-Speed Stress Test') Tj
+0 -13 Td
+/F1 9.5 Tf
+(   * Pushes 1,000 and 10,000 events through the database, proving it handles over 20,000) Tj
+0 -13 Td
+(     events per second with negligible latency, fulfilling the Mid-Project Review spec.) Tj
+0 -26 Td
+/F1 9 Tf
+(Page 3 of 4                                                        PyChronicle Member 3 Guide) Tj
+ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 13 0 R /Resources 5 0 R >>
+endobj
+13 0 obj
+<< /Length 2650 >>
+stream
+BT
+/F2 13 Tf
+50 790 Td
+(SECTION 4: WHAT WE ARE DOING IN FURTHER WEEKS) Tj
+0 -20 Td
+/F2 11 Tf
+(Week 3: Delta Compression & State Reconstruction) Tj
+0 -14 Td
+/F1 9.5 Tf
+(   * Current Situation: Right now, if a program has 10 variables, we save all 10 at every line.) Tj
+0 -13 Td
+(   * Week 3 Objective: Build Delta Compression (cutting storage footprint by ~90%).) Tj
+0 -13 Td
+(   * How it works:) Tj
+0 -13 Td
+(       1. State-Diff Calculator (delta.py): Compares new state vs old state. If only variable x) Tj
+0 -13 Td
+(          changed on line 20, we ONLY save variable x!) Tj
+0 -13 Td
+(       2. State Reconstructor (reconstructor.py): Replays deltas up to step K on demand) Tj
+0 -13 Td
+(          to rebuild the complete variable state for the UI.) Tj
+0 -13 Td
+(       3. Keyframe Snapshots: Saves a full snapshot every 50 steps so historical scrubbing) Tj
+0 -13 Td
+(          in the TUI is instantaneous.) Tj
+0 -14 Td
+(   * Schema Readiness: The is_delta flag is already built into our database table!) Tj
+0 -20 Td
+/F2 11 Tf
+(Week 4: Packaging & Final Polish) Tj
+0 -14 Td
+/F1 9.5 Tf
+(   * Package PyChronicle as a command-line tool (e.g. pychronicle run myscript.py).) Tj
+0 -13 Td
+(   * Assist Member 4 with connecting TUI Watch Variables panel to our history queries.) Tj
+0 -22 Td
+/F1 10 Tf
+(==================================================================================) Tj
+0 -20 Td
+/F2 12 Tf
+(PRESENTATION QUICK-REFERENCE CHEAT SHEET) Tj
+0 -16 Td
+/F2 10 Tf
+(1. What 3 commands do I execute?) Tj
+0 -13 Td
+/F4 9 Tf
+(   python demo_phase1_phase2.py    -> Live visual time-travel playback and watch table) Tj
+0 -12 Td
+(   python -m pytest -v             -> All 26 automated unit tests pass 100%) Tj
+0 -12 Td
+(   python benchmark.py             -> Performance audit: >20,000 events/second) Tj
+0 -16 Td
+/F2 10 Tf
+(2. Why SQLite instead of JSON files?) Tj
+0 -13 Td
+/F1 9.5 Tf
+(   "SQLite gives indexed lookups on (execution_id, sequence). For 10,000 lines of code,) Tj
+0 -12 Td
+(    parsing a giant JSON file freezes the UI; SQLite queries return in milliseconds.") Tj
+0 -16 Td
+/F2 10 Tf
+(3. Why not Python pickle?) Tj
+0 -13 Td
+/F1 9.5 Tf
+(   "Pickle can execute arbitrary malicious code upon unpickling and is brittle across) Tj
+0 -12 Td
+(    Python versions. Our custom JSON serializer with safe fallbacks is safe and inspectable.") Tj
+0 -16 Td
+/F2 10 Tf
+(4. What is Delta Compression in Week 3?) Tj
+0 -13 Td
+/F1 9.5 Tf
+(   "Delta compression only saves variables that actually mutated on each line instead of) Tj
+0 -12 Td
+(    the full state tree, reducing database and memory usage by 90% without schema changes.") Tj
+0 -24 Td
+/F1 9 Tf
+(Page 4 of 4                                                        PyChronicle Member 3 Guide) Tj
+ET
+endstream
+endobj
+xref
+0 14
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000133 00000 n 
+0000000378 00000 n 
+0000000223 00000 n 
+0000003150 00000 n 
+0000003244 00000 n 
+0000006016 00000 n 
+0000006110 00000 n 
+0000008832 00000 n 
+0000008927 00000 n 
+0000011649 00000 n 
+trailer
+<< /Size 14 /Root 1 0 R >>
+startxref
+14371
+%%EOF
