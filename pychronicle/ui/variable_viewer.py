@@ -7,11 +7,10 @@ highlighting mutated variables and calculating state differentials.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.containers import Vertical
 from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import DataTable, Input, Label

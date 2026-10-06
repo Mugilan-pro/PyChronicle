@@ -7,13 +7,11 @@ Project Spec Week 2 Deliverable:
   integration readiness with Member 3's SQLite storage schema.
 """
 
-import os
 import pytest
 from rich.syntax import Syntax
-from textual.widgets import DataTable, Header, Footer, Label, Static
+from textual.widgets import DataTable, Footer, Header, Label, Static
 
 from pychronicle.storage.manager import StorageManager
-from pychronicle.storage.models import ExecutionRecord, TraceEvent
 from pychronicle.ui.app import PyChronicleApp
 from pychronicle.ui.code_viewer import CodeViewer
 from pychronicle.ui.timeline import TimelineControl

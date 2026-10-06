@@ -1,12 +1,11 @@
-"""Main Textual Application for PyChronicle Time-Travel Debugger (Weeks 1 & 2).
+"""Main Textual Application for PyChronicle Time-Travel Debugger.
 
-Integrates Code Viewer, Timeline Scrubber, and Variable Viewer into a unified,
-hacker-style terminal user interface scaffolding.
+Integrates Code Viewer, Timeline Scrubber, Variable Viewer, and Watch Variables
+into a unified, interactive terminal user interface.
 """
 
 from __future__ import annotations
 
-import os
 from typing import Any, Dict, List, Optional
 
 from textual.app import App, ComposeResult
@@ -17,13 +16,14 @@ from textual.widgets import Footer, Header, Input
 from pychronicle.storage.manager import StorageManager
 from pychronicle.storage.models import ExecutionRecord, TraceEvent
 from pychronicle.ui.code_viewer import CodeViewer
-from pychronicle.ui.modals import HelpModal
+from pychronicle.ui.modals import AddWatchModal, HelpModal
 from pychronicle.ui.timeline import TimelineControl
 from pychronicle.ui.variable_viewer import VariableViewer
+from pychronicle.ui.watch_viewer import WatchViewer
 
 
 class PyChronicleApp(App[None]):
-    """PyChronicle Terminal User Interface (TUI) — Weeks 1 & 2 Scaffolding."""
+    """PyChronicle Terminal User Interface (TUI)."""
 
     TITLE = "PyChronicle — Time-Travel Debugger"
     SUB_TITLE = "Step through execution state"
@@ -35,6 +35,7 @@ class PyChronicleApp(App[None]):
         Binding("home,g", "jump_start", "Start", show=True, priority=True),
         Binding("end,G", "jump_end", "End", show=True, priority=True),
         Binding("space,p", "toggle_play", "Play/Pause", show=True),
+        Binding("w", "add_watch", "Watch Var", show=True),
         Binding("f", "focus_filter", "Filter", show=True),
         Binding("question_mark", "show_help", "Help", show=True),
     ]
@@ -75,7 +76,12 @@ class PyChronicleApp(App[None]):
     }
 
     #var-container {
-        height: 100%;
+        height: 55%;
+        border-bottom: solid #313244;
+    }
+
+    #watch-container {
+        height: 45%;
     }
 
     #timeline-container {
@@ -114,7 +120,7 @@ class PyChronicleApp(App[None]):
         self.execution_record: Optional[ExecutionRecord] = None
 
     def _create_demo_trace(self, storage: StorageManager) -> int:
-        """Populate in-memory storage with a rich algorithm trace for standalone demo."""
+        """Populate in-memory storage with a sample algorithm trace."""
         demo_script = "sample_scripts/demo_algorithm.py"
         exec_id = storage.start_execution(demo_script, metadata={"mode": "demo_trace"})
 
@@ -175,6 +181,11 @@ class PyChronicleApp(App[None]):
             with Vertical(id="right-column"):
                 with Vertical(id="var-container"):
                     yield VariableViewer(id="var-viewer")
+                with Vertical(id="watch-container"):
+                    yield WatchViewer(
+                        initial_watches=["total_sum", "fib_sequence"],
+                        id="watch-viewer",
+                    )
         with Vertical(id="timeline-container"):
             yield TimelineControl(id="timeline-control")
         yield Footer()
@@ -192,6 +203,12 @@ class PyChronicleApp(App[None]):
 
         code_viewer = self.query_one("#code-viewer", CodeViewer)
         timeline = self.query_one("#timeline-control", TimelineControl)
+        watch_viewer = self.query_one("#watch-viewer", WatchViewer)
+
+        # Wire history provider for Watch Variables
+        watch_viewer.set_history_provider(
+            lambda var: self.storage.get_variable_history(var, self.execution_id)
+        )
 
         if self.script_path and not self.source_code:
             code_viewer.load_file(self.script_path)
@@ -206,7 +223,7 @@ class PyChronicleApp(App[None]):
             code_viewer.highlight_line(1)
 
     def _display_step(self, step_index: int) -> None:
-        """Update code highlight and variable table for a given step."""
+        """Update code highlight, variable table, and watches for a given step."""
         if not self.events:
             return
 
@@ -217,14 +234,31 @@ class PyChronicleApp(App[None]):
         code_viewer = self.query_one("#code-viewer", CodeViewer)
         timeline = self.query_one("#timeline-control", TimelineControl)
         var_viewer = self.query_one("#var-viewer", VariableViewer)
+        watch_viewer = self.query_one("#watch-viewer", WatchViewer)
 
         code_viewer.highlight_line(event.line_number)
         timeline.set_step_info(event.line_number, event.function_name, event.event_type)
         var_viewer.update_state(event.state, prev_event.state if prev_event else None)
+        watch_viewer.update_step(step_index, event.state)
 
     def on_timeline_control_step_changed(self, message: TimelineControl.StepChanged) -> None:
         """Handle scrub/step update from timeline."""
         self._display_step(message.step_index)
+
+    def on_watch_viewer_jump_to_step(self, message: WatchViewer.JumpToStep) -> None:
+        """Handle time-travel jump from Watch Variables panel."""
+        timeline = self.query_one("#timeline-control", TimelineControl)
+        timeline.set_step(message.step_index)
+
+    def on_watch_viewer_request_add_watch(self, message: WatchViewer.RequestAddWatch) -> None:
+        self.action_add_watch()
+
+    def on_variable_viewer_variable_selected(self, message: VariableViewer.VariableSelected) -> None:
+        """When user clicks a variable in table, add it to watch list."""
+        watch_viewer = self.query_one("#watch-viewer", WatchViewer)
+        if message.var_name not in watch_viewer.watched_variables:
+            watch_viewer.add_watch(message.var_name)
+            self.notify(f"Added '{message.var_name}' to Watch Variables", title="Watch Added")
 
     def action_step_forward(self) -> None:
         self.query_one("#timeline-control", TimelineControl).step_forward()
@@ -240,6 +274,24 @@ class PyChronicleApp(App[None]):
 
     def action_toggle_play(self) -> None:
         self.query_one("#timeline-control", TimelineControl).toggle_play()
+
+    def action_add_watch(self) -> None:
+        timeline = self.query_one("#timeline-control", TimelineControl)
+        idx = timeline.current_step - 1
+        curr_vars: List[str] = []
+        if 0 <= idx < len(self.events):
+            curr_vars = list(self.events[idx].state.keys())
+
+        def _on_modal_dismiss(var_name: Optional[str]) -> None:
+            if var_name:
+                watch_viewer = self.query_one("#watch-viewer", WatchViewer)
+                added = watch_viewer.add_watch(var_name)
+                if added:
+                    self.notify(f"Now watching: {var_name}", title="Watch Added")
+                else:
+                    self.notify(f"Variable '{var_name}' is already being watched", title="Notice")
+
+        self.push_screen(AddWatchModal(available_variables=curr_vars), _on_modal_dismiss)
 
     def action_focus_filter(self) -> None:
         try:
