@@ -57,9 +57,7 @@ class TraceEvent:
         timestamp: System time when the event occurred.
         is_delta: Flag indicating whether 'state' is a full snapshot (False)
                   or only variables mutated at this line (True).
-                  Reserved for seamless Week 3 delta compression.
-        id: Primary key assigned by SQLite upon persistence.
-    """
+    Reserved for seamless Week 3 delta compression.
     execution_id: int
     sequence: int
     line_number: int

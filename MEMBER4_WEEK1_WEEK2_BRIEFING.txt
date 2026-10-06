@@ -1,0 +1,117 @@
+================================================================================
+           PyChronicle — Member 4 (Textual UI) Weeks 1 & 2 Report
+================================================================================
+Author: Member 4 (Terminal UI)
+Project: PyChronicle — Time-Travel Debugger
+Phase: Weeks 1 & 2 (UI Scaffolding, Code Viewer, Timeline Slider, State View)
+
+--------------------------------------------------------------------------------
+1. Summary of Work Done
+--------------------------------------------------------------------------------
+For Weeks 1 and 2, I focused on building the terminal interface scaffolding 
+using Textual and Rich, connecting it directly with the SQLite storage backend 
+built by Member 3.
+
+Key deliverables completed:
+- Set up the main Textual application (`PyChronicleApp`) with a responsive dual-pane 
+  layout and clean terminal styling.
+- Built the Code Viewer pane (`CodeViewer`) with Python syntax highlighting, line 
+  numbers, and automatic viewport scrolling to follow the execution line.
+- Built the Timeline Slider (`TimelineControl`) with a progress track, step navigation 
+  (Next/Prev/Start/End), and playback controls.
+- Built the Variable Viewer table (`VariableViewer`) displaying local variables 
+  stored in SQLite, with visual indicators for modified values (`MOD`) and newly 
+  created variables (`NEW`).
+- Connected the UI directly to Member 3's `StorageManager` to consume execution 
+  events and variable states.
+- Authored 14 automated UI tests using Textual's test runner, with 100% pass rate.
+
+--------------------------------------------------------------------------------
+2. Architecture & How it Works
+--------------------------------------------------------------------------------
+The UI is built with a clear separation of concerns across widgets:
+
+- Layout:
+  * Left pane (58% width): Displays target Python source code with syntax 
+    highlighting (Monokai theme) and an active line highlight.
+  * Right pane (42% width): Displays the variable state table for the active step.
+  * Bottom dock: Timeline slider showing current step, total steps, and playback 
+    buttons.
+
+- State Flow:
+  1. The app loads execution events from `StorageManager.get_events()`.
+  2. When the user scrubs the timeline (using arrow keys or buttons), the timeline 
+     emits a `StepChanged` message.
+  3. The main app receives the message and updates both the code viewer (to highlight 
+     the line) and the variable viewer (to show the variable snapshot at that step).
+  4. If a variable changed from the previous line, the variable viewer marks it 
+     with `MOD` and displays the old vs new value (`was 0 -> 10`).
+
+- Auto-Scroll Engine:
+  To prevent the active line from moving off-screen in long scripts, `CodeViewer` 
+  calculates scroll offsets (`scroll_to(y=active_line - 5)`) so the highlighted line 
+  stays centered in the terminal window.
+
+- Safe Fallback:
+  If a target script file cannot be found on disk, the code viewer displays a clean 
+  informational placeholder rather than crashing.
+
+--------------------------------------------------------------------------------
+3. Integration with Member 3 (Storage Engine)
+--------------------------------------------------------------------------------
+The UI connects directly to Member 3's `StorageManager` without running raw SQL:
+- Reads `TraceEvent` objects returned by `storage.get_events(execution_id)`.
+- Extracts `event.line_number` to highlight lines in `CodeViewer`.
+- Extracts `event.state` to populate `VariableViewer`.
+- Extracts `event.sequence` to synchronize the timeline slider.
+
+This ensures the UI remains completely decoupled from database schema internals.
+
+--------------------------------------------------------------------------------
+4. Project Files
+--------------------------------------------------------------------------------
+pychronicle/
+  ui/
+    ├── __init__.py           -> Package exports
+    ├── app.py                -> Main Textual application and layout coordinator
+    ├── code_viewer.py        -> Code-view pane with syntax highlighting and auto-scroll
+    ├── timeline.py           -> Timeline slider and playback controls
+    ├── variable_viewer.py    -> Variable inspection table with mutation markers
+    └── modals.py             -> Help dialog screen
+
+tests/
+    ├── test_ui_week1_week2.py -> 5 tests specifically for Week 1 & 2 scaffolding
+    └── test_ui.py            -> 9 tests covering UI behavior and navigation
+
+Root Scripts & Documentation:
+    ├── demo_week1_week2_tui.py -> Interactive terminal demo for Weeks 1 & 2
+    ├── run_tui.py            -> CLI launcher
+    ├── sample_scripts/
+    │     └── demo_algorithm.py -> Sample script used for debugging demo
+    ├── UI_DOCS.md            -> Technical reference
+    └── MEMBER4_WEEK1_WEEK2_BRIEFING.txt -> This file
+
+--------------------------------------------------------------------------------
+5. How to Run and Test
+--------------------------------------------------------------------------------
+Run the interactive demo:
+    python demo_week1_week2_tui.py
+
+Run against a specific SQLite database:
+    python run_tui.py --db trace.db
+
+Run the automated test suite:
+    pytest -v tests/
+
+--------------------------------------------------------------------------------
+6. Keyboard Shortcuts
+--------------------------------------------------------------------------------
+  Right / l       -> Step forward 1 event
+  Left / h        -> Step backward 1 event
+  Home / g        -> Jump to start (Step 1)
+  End / G         -> Jump to end (Last step)
+  Space / p       -> Toggle play / pause
+  f               -> Focus variable search filter
+  ?               -> Open Help dialog
+  q / Ctrl+C      -> Exit
+================================================================================
