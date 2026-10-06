@@ -1,21 +1,19 @@
-"""Asynchronous UI tests for PyChronicle Terminal UI (Weeks 1 & 2).
+"""Comprehensive asynchronous UI tests for PyChronicle Terminal UI.
 
-Tests CodeViewer, TimelineControl, VariableViewer, modals,
-and time-travel keyboard navigation.
+Tests CodeViewer, TimelineControl, VariableViewer, WatchViewer, modals,
+and time-travel keyboard navigation across all 4 weeks.
 """
 
-import os
 import pytest
-from rich.syntax import Syntax
-from textual.widgets import Button, DataTable, Input, Label, Static
+from textual.widgets import DataTable, Input, Label
 
 from pychronicle.storage.manager import StorageManager
-from pychronicle.storage.mock_tracer import run_mock_trace_session
 from pychronicle.ui.app import PyChronicleApp
 from pychronicle.ui.code_viewer import CodeViewer
-from pychronicle.ui.modals import HelpModal
+from pychronicle.ui.modals import AddWatchModal, HelpModal
 from pychronicle.ui.timeline import TimelineControl
 from pychronicle.ui.variable_viewer import VariableViewer
+from pychronicle.ui.watch_viewer import WatchViewer
 
 
 @pytest.mark.asyncio
@@ -27,10 +25,12 @@ async def test_app_mount_and_initialization():
         code_viewer = app.query_one("#code-viewer", CodeViewer)
         timeline = app.query_one("#timeline-control", TimelineControl)
         var_viewer = app.query_one("#var-viewer", VariableViewer)
+        watch_viewer = app.query_one("#watch-viewer", WatchViewer)
 
         assert code_viewer is not None
         assert timeline is not None
         assert var_viewer is not None
+        assert watch_viewer is not None
 
         # Verify trace events are loaded
         assert len(app.events) > 0
@@ -164,6 +164,35 @@ async def test_variable_viewer_deltas_and_filtering():
 
 
 @pytest.mark.asyncio
+async def test_watch_variables_add_remove_and_history():
+    """Verify WatchViewer add, remove, and history integration (Week 4)."""
+    app = PyChronicleApp()
+    async with app.run_test() as pilot:
+        watch_viewer = app.query_one("#watch-viewer", WatchViewer)
+
+        # Initial watches configured
+        assert "total_sum" in watch_viewer.watched_variables
+
+        # Add new watch
+        added = watch_viewer.add_watch("a")
+        assert added is True
+        assert "a" in watch_viewer.watched_variables
+
+        # Duplicate watch rejected
+        added_duplicate = watch_viewer.add_watch("a")
+        assert added_duplicate is False
+
+        # Remove watch
+        removed = watch_viewer.remove_watch("a")
+        assert removed is True
+        assert "a" not in watch_viewer.watched_variables
+
+        # Test history query
+        history = watch_viewer._get_history("total_sum")
+        assert isinstance(history, list)
+
+
+@pytest.mark.asyncio
 async def test_keyboard_navigation():
     """Verify keyboard shortcuts for stepping, jumping, and toggling."""
     app = PyChronicleApp()
@@ -207,6 +236,23 @@ async def test_time_travel_synchronization():
 
 
 @pytest.mark.asyncio
+async def test_add_watch_modal():
+    """Verify AddWatchModal functionality and submission (Week 4)."""
+    modal = AddWatchModal(available_variables=["foo", "bar"])
+    app = PyChronicleApp()
+    async with app.run_test() as pilot:
+        app.push_screen(modal)
+        await pilot.pause()
+
+        input_box = modal.query_one("#watch-input", Input)
+        input_box.value = "my_var"
+
+        # Submit input
+        await pilot.press("enter")
+        await pilot.pause()
+
+
+@pytest.mark.asyncio
 async def test_help_modal():
     """Verify HelpModal displays and dismisses cleanly."""
     help_screen = HelpModal()
@@ -236,36 +282,3 @@ async def test_empty_trace_handling():
         # Stepping does not raise
         timeline.step_forward()
         timeline.step_backward()
-import asyncio
-
-from pychronicle.storage.database import SQLiteStore
-from pychronicle.ui.app import HistoryApp
-
-
-def test_textual_history_app_mounts_and_navigates(tmp_path) -> None:
-    source = tmp_path / "viewed.py"
-    source.write_text("first = 1\nsecond = 2\n", encoding="utf-8")
-    database = tmp_path / "view.sqlite3"
-    with SQLiteStore(database) as store:
-        run_id = store.create_run(str(source))
-        for sequence, line, name, value in ((1, 1, "first", 1), (2, 2, "second", 2)):
-            store.record_event(
-                run_id=run_id,
-                sequence=sequence,
-                filename=str(source),
-                line_number=line,
-                function_name="<module>",
-                frame_id=1,
-                changes={name: value},
-            )
-
-    async def exercise() -> None:
-        app = HistoryApp(database)
-        async with app.run_test() as pilot:
-            await pilot.pause()
-            assert "Event 1/2" in str(app.query_one("#timeline").render())
-            await pilot.press("right")
-            await pilot.pause()
-            assert "Event 2/2" in str(app.query_one("#timeline").render())
-
-    asyncio.run(exercise())

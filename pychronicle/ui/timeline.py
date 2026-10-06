@@ -6,16 +6,15 @@ to arbitrary points in time, and autoplay forward execution.
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 
-from rich.text import Text
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal
 from textual.message import Message
 from textual.reactive import reactive
 from textual.timer import Timer
 from textual.widget import Widget
-from textual.widgets import Button, Label, ProgressBar, Static
+from textual.widgets import Button, Label, Static
 
 
 class TimelineControl(Widget):

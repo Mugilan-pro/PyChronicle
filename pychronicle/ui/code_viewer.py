@@ -10,9 +10,8 @@ import os
 from typing import Optional
 
 from rich.syntax import Syntax
-from rich.text import Text
 from textual.app import ComposeResult
-from textual.containers import Vertical, VerticalScroll
+from textual.containers import VerticalScroll
 from textual.widget import Widget
 from textual.widgets import Label, Static
 
