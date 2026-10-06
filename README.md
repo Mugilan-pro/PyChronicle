@@ -20,16 +20,16 @@ The storage subsystem serves as the core persistence engine:
 
 ---
 
-## Quickstart & Verification
+## Quickstart & Examples
 
-### 1. Weeks 1 & 2 Storage Foundation Demo
+### 1. Time-Travel Playback & Variable Watch Example
 ```bash
-python demo_phase1_phase2.py
+python example_time_travel.py
 ```
 
-### 2. Weeks 3 & 4 Delta Compression & CLI Demo
+### 2. Delta Compression & State Reconstruction Example
 ```bash
-python demo_weeks3_and_4.py
+python example_delta_compression.py
 ```
 
 ### 3. Run the Automated Test Suite (All 9 Test Modules)

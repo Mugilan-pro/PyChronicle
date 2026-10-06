@@ -143,14 +143,14 @@ python -m pychronicle view trace.db --var total
 python -m pytest -v
 ```
 
-### Run Weeks 1 & 2 Demo
+### Run Time-Travel Playback Example
 ```cmd
-python demo_phase1_phase2.py
+python example_time_travel.py
 ```
 
-### Run Weeks 3 & 4 Demo (Delta Compression & CLI)
+### Run Delta Compression & State Reconstruction Example
 ```cmd
-python demo_weeks3_and_4.py
+python example_delta_compression.py
 ```
 
 ### Run Performance Benchmark

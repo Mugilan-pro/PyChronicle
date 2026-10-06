@@ -8,15 +8,18 @@ import zipfile
 
 
 def make_submission_zip():
-    archive_name = "PyChronicle_Member3_Week1_2.zip"
+    archive_name = "PyChronicle_Storage_Engine.zip"
     base_dir = os.path.dirname(os.path.abspath(__file__))
     zip_path = os.path.join(base_dir, archive_name)
 
     items_to_include = [
         "pychronicle",
         "tests",
-        "demo_phase1_phase2.py",
+        "example_time_travel.py",
+        "example_delta_compression.py",
         "benchmark.py",
+        "pyproject.toml",
+        "README.md",
         "STORAGE_DOCS.md",
         "TEAM_LEAD_EXPLANATION.txt",
     ]

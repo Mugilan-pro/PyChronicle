@@ -1,7 +1,12 @@
-"""Interactive verification script for PyChronicle Phases 1 & 2.
+"""Interactive demonstration of PyChronicle's time-travel playback and variable watchpoints.
 
-Run this script from your terminal using:
-    python demo_phase1_phase2.py
+Demonstrates:
+1. Recording execution steps and local variable mutations into SQLite.
+2. Chronological time-travel playback in sequence order.
+3. Variable watchpoint query across execution history.
+
+Usage:
+    python example_time_travel.py
 """
 
 import time
@@ -10,21 +15,21 @@ from pychronicle.storage.models import ExecutionRecord, TraceEvent, VariableStat
 
 
 def run_demo():
-    print("=" * 60)
-    print("  PyChronicle — Storage Engine Demo (Phases 1 & 2)")
-    print("=" * 60)
+    print("=" * 65)
+    print("  PyChronicle — Execution Trace & Time-Travel Playback Demo")
+    print("=" * 65)
 
-    # 1. Initialize Database (In-Memory for demo, zero disk pollution)
+    # 1. Initialize Database
     print("\n[Step 1] Initializing SQLite database...")
     db = Database(":memory:")
-    print(" -> Schema created with tables: executions, trace_events, variable_states.")
+    print(" -> Schema ready: executions, trace_events, variable_states.")
 
     # 2. Start an Execution Session
     print("\n[Step 2] Recording a new debug execution session...")
     execution = ExecutionRecord(
         script_name="sample_algorithm.py",
         started_at=time.time(),
-        metadata={"python_version": "3.11", "author": "Member 3"},
+        metadata={"python_version": "3.11", "engine": "PyChronicle"},
     )
     exec_id = db.insert_execution(execution)
     print(f" -> Execution session started with ID: {exec_id} for '{execution.script_name}'")
@@ -36,7 +41,6 @@ def run_demo():
     #      line 3:     total += (i * 10)
     print("\n[Step 3] Simulating execution tracer line hits and variable state...")
     simulated_steps = [
-        # (sequence, line_number, {var_name: (val_str, type_str)})
         (1, 1, {"total": ("0", "int")}),
         (2, 2, {"total": ("0", "int"), "i": ("0", "int")}),
         (3, 3, {"total": ("0", "int"), "i": ("0", "int")}),
@@ -60,7 +64,6 @@ def run_demo():
         db.insert_event_with_variables(event, var_states)
         print(f"    Recorded Event #{seq} | Line {line:2d} | Variables: {list(vars_dict.keys())}")
 
-    # Mark execution complete
     db.update_execution_completed(exec_id, completed_at=time.time())
     print(" -> Execution session completed.")
 
@@ -68,22 +71,22 @@ def run_demo():
     print("\n[Step 4] Time-Travel Playback (Chronological Retrieval):")
     events = db.get_events_for_execution(exec_id)
     print(f"{'Seq':<5} | {'Line':<6} | {'Function':<16} | {'Variable Values'}")
-    print("-" * 60)
+    print("-" * 65)
     for ev, vars_list in events:
         vars_repr = ", ".join(f"{v.var_name}={v.serialized_value}" for v in vars_list)
         print(f"{ev.sequence:<5} | Line {ev.line_number:<2} | {ev.function_name:<16} | {vars_repr}")
 
     # 5. Variable History Watch (for TUI watchpoints)
-    print("\n[Step 5] TUI Feature — 'Watch Variable total' across time:")
+    print("\n[Step 5] Watch Variable 'total' across execution time:")
     history = db.get_variable_history(exec_id, "total")
     print(f"{'Seq':<5} | {'Line':<6} | {'Value':<10} | {'Type'}")
     print("-" * 35)
     for h in history:
         print(f"{h['sequence']:<5} | Line {h['line_number']:<2} | {h['serialized_value']:<10} | {h['value_type']}")
 
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 65)
     print("  Verification Succeeded! The Storage Engine is functional.")
-    print("=" * 60)
+    print("=" * 65)
     db.close()
 
 

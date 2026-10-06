@@ -1,12 +1,12 @@
-"""Interactive verification script for PyChronicle Weeks 3 & 4.
+"""Interactive demonstration of PyChronicle's delta compression and state reconstruction.
 
 Demonstrates:
-1. Delta Compression (~90% storage savings)
-2. Historical State Reconstruction at any timeline step
-3. CLI Tool commands (run, info, view, watchpoints)
+1. Delta Compression (~90% storage savings compared to full state snapshots).
+2. Historical State Reconstruction on demand from stored deltas.
+3. Command-Line Interface (CLI) verification.
 
-Run from your terminal using:
-    python demo_weeks3_and_4.py
+Usage:
+    python example_delta_compression.py
 """
 
 import os
@@ -17,11 +17,11 @@ from pychronicle.storage.manager import StorageManager
 
 def demo_delta_compression():
     print("=" * 65)
-    print("  PyChronicle — Week 3: Delta Compression Verification")
+    print("  PyChronicle — Delta Compression & Storage Optimization")
     print("=" * 65)
 
     num_steps = 20
-    # Simulate an algorithm with 5 unchanging config variables and 1 loop accumulator
+
     def get_state(step):
         return {
             "app_name": "PyChronicle",
@@ -32,7 +32,7 @@ def demo_delta_compression():
             "accumulator": step * 10,  # Only this variable changes!
         }
 
-    # Run A: Without Delta Compression (Full Snapshots - Weeks 1 & 2 baseline)
+    # Run A: Full Snapshots (baseline)
     storage_full = StorageManager(":memory:", enable_delta=False)
     exec_full = storage_full.start_execution("full_snapshots.py")
     for i in range(1, num_steps + 1):
@@ -41,7 +41,7 @@ def demo_delta_compression():
 
     rows_full = storage_full.db.conn.execute("SELECT COUNT(*) FROM variable_states").fetchone()[0]
 
-    # Run B: With Delta Compression (Week 3 Engine)
+    # Run B: Delta Compression
     storage_delta = StorageManager(":memory:", enable_delta=True, checkpoint_interval=50)
     exec_delta = storage_delta.start_execution("delta_compressed.py")
     for i in range(1, num_steps + 1):
@@ -72,7 +72,7 @@ def demo_delta_compression():
 
 def demo_cli_packaging():
     print("\n" + "=" * 65)
-    print("  PyChronicle — Week 4: CLI Packaging & Time-Travel View")
+    print("  PyChronicle — CLI Tracing & Time-Travel View")
     print("=" * 65)
 
     sample_script = os.path.join(tempfile.gettempdir(), "demo_script.py")
@@ -110,7 +110,7 @@ def demo_cli_packaging():
         os.remove(sample_db)
 
     print("\n" + "=" * 65)
-    print("  Weeks 3 & 4 Verification Succeeded!")
+    print("  Verification Succeeded!")
     print("=" * 65)
 
 
