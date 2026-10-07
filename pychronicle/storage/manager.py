@@ -87,7 +87,7 @@ class StorageManager:
             state: Dictionary mapping variable names to their current Python values.
             function_name: Name of the enclosing function (default: '<module>').
             event_type: 'line', 'call', 'return', or 'exception'.
-            is_delta: Set to True when delta state capture is enabled.
+            is_delta: Set to True when delta compression is enabled.
             sequence: Optional explicit sequence number. If omitted, auto-increments.
             
         Returns:

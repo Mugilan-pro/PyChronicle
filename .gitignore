@@ -4,6 +4,13 @@ __pycache__/
 *$py.class
 
 # Pytest & testing cache
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# Testing & Cache
 .pytest_cache/
 .coverage
 htmlcov/
@@ -25,3 +32,21 @@ env/
 .env
 .vscode/
 .idea/
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Local SQLite databases (if generated during testing)
+*.db-journal
+*.db-wal
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+.pytest_cache/
+.venv/
+build/
+dist/
+*.egg-info/

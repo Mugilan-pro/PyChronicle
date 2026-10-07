@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PyChronicle — Interactive Time-Travel Debugger & AST Visualizer</title>
+  <meta name="description" content="PyChronicle is an AST-assisted, SQLite-backed time-travel debugger and visualizer for Python scripts. Step backward and forward through time, inspect local variable mutations, analyze AST grammar, and debug interactively.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-dark">
+  <div id="app-container">
+    <!-- Top Navigation Header -->
+    <header class="app-header" id="main-header">
+      <div class="header-left">
+        <div class="brand-badge">
+          <div class="brand-pulse-dot"></div>
+          <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1 class="brand-title">PyChronicle</h1>
+          <span class="brand-subtitle">Time-Travel Debugger &amp; AST Engine</span>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <!-- Database and Run selectors -->
+        <div class="control-group">
+          <label for="db-select" class="control-label">Database:</label>
+          <div class="select-wrapper">
+            <select id="db-select" class="glass-select" aria-label="Select database">
+              <option value="">Loading databases...</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="run-select" class="control-label">Run:</label>
+          <div class="select-wrapper">
+            <select id="run-select" class="glass-select" aria-label="Select execution run">
+              <option value="">Loading runs...</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button id="btn-open-trace-modal" class="btn btn-primary" title="Trace a Python script live or test code in playground">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          <span>Live Trace &amp; Playground</span>
+        </button>
+
+        <button id="btn-export-json" class="btn btn-secondary" title="Export trace history as JSON">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Export</span>
+        </button>
+
+        <button id="btn-shortcuts-modal" class="btn btn-icon" title="Keyboard Shortcuts" aria-label="Keyboard Shortcuts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+            <line x1="6" y1="8" x2="6" y2="8"></line>
+            <line x1="10" y1="8" x2="10" y2="8"></line>
+            <line x1="14" y1="8" x2="14" y2="8"></line>
+            <line x1="18" y1="8" x2="18" y2="8"></line>
+            <line x1="6" y1="12" x2="6" y2="12"></line>
+            <line x1="18" y1="12" x2="18" y2="12"></line>
+            <line x1="10" y1="16" x2="14" y2="16"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Run Summary Bar -->
+    <section class="run-summary-bar" id="run-summary">
+      <div class="summary-item">
+        <span class="summary-label">Target:</span>
+        <span class="summary-value" id="sum-target">-</span>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-item">
+        <span class="summary-label">Status:</span>
+        <span class="status-pill status-completed" id="sum-status">ready</span>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-item">
+        <span class="summary-label">Events:</span>
+        <span class="summary-value highlight" id="sum-events">0</span>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-item">
+        <span class="summary-label">Duration:</span>
+        <span class="summary-value" id="sum-duration">0.00s</span>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-item">
+        <span class="summary-label">Current Frame:</span>
+        <span class="summary-value code-font" id="sum-frame">frame #1</span>
+      </div>
+    </section>
+
+    <!-- Time-Travel Playback & Scrubber Controls -->
+    <nav class="timeline-bar" id="timeline-controls" aria-label="Time travel scrubber navigation">
+      <div class="playback-controls">
+        <button id="btn-step-first" class="btn-step" title="Jump to First Event (Home)" aria-label="First event">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="11 17 6 12 11 7"></polyline>
+            <polyline points="18 17 13 12 18 7"></polyline>
+            <line x1="4" y1="7" x2="4" y2="17"></line>
+          </svg>
+        </button>
+
+        <button id="btn-step-backward" class="btn-step" title="Step Backward (Left Arrow)" aria-label="Step backward">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+
+        <button id="btn-play-pause" class="btn-play" title="Play / Pause Auto-Step (Space)" aria-label="Play or pause">
+          <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <svg class="icon-pause hide" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="4" width="4" height="16"></rect>
+            <rect x="14" y="4" width="4" height="16"></rect>
+          </svg>
+        </button>
+
+        <button id="btn-step-forward" class="btn-step" title="Step Forward (Right Arrow)" aria-label="Step forward">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+
+        <button id="btn-step-last" class="btn-step" title="Jump to Last Event (End)" aria-label="Last event">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="13 17 18 12 13 7"></polyline>
+            <polyline points="6 17 11 12 6 7"></polyline>
+            <line x1="20" y1="7" x2="20" y2="17"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Scrubber Track & Slider -->
+      <div class="scrubber-container">
+        <div class="scrubber-info">
+          <div class="step-badge" id="step-badge">
+            <span class="step-curr" id="step-curr">1</span>
+            <span class="step-slash">/</span>
+            <span class="step-total" id="step-total">1</span>
+          </div>
+          <div class="event-context-badge" id="event-context">
+            <span class="func-name" id="ctx-function">&lt;module&gt;</span>
+            <span class="ctx-sep">:</span>
+            <span class="line-num" id="ctx-line">line 1</span>
+          </div>
+          <div class="event-progress-text" id="event-pct">0%</div>
+        </div>
+        <div class="scrubber-track-wrapper">
+          <input type="range" id="timeline-slider" min="0" max="0" value="0" step="1" aria-label="Timeline sequence position">
+          <div class="scrubber-fill" id="scrubber-fill"></div>
+        </div>
+      </div>
+
+      <!-- Playback Speed -->
+      <div class="speed-control">
+        <label for="speed-select" class="speed-label">Speed:</label>
+        <select id="speed-select" class="speed-select" aria-label="Playback speed">
+          <option value="1200">0.5×</option>
+          <option value="600" selected>1×</option>
+          <option value="300">2×</option>
+          <option value="120">5×</option>
+        </select>
+      </div>
+    </nav>
+
+    <!-- Main Workspace Split Panels -->
+    <main class="workspace-grid" id="main-workspace">
+      <!-- Left Panel: Source Code & Line Heatmap -->
+      <section class="panel panel-code" id="panel-code-viewer">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="panel-icon">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            <h2 class="panel-title" id="code-file-name">Source Code</h2>
+            <span class="badge" id="code-line-count">0 lines</span>
+          </div>
+          <div class="panel-actions">
+            <label class="toggle-control" title="Toggle line execution frequency heatmap">
+              <input type="checkbox" id="toggle-heatmap" checked>
+              <span class="toggle-slider"></span>
+              <span class="toggle-text">Heatmap</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="code-viewport" id="code-viewport">
+          <div class="code-container" id="code-container">
+            <!-- Dynamic lines rendered here -->
+            <div class="code-placeholder">
+              <p>Select a run or trace a script to inspect code history.</p>
+            </div>
+          </div>
+        </div>
+
+        <footer class="panel-footer code-footer" id="code-footer">
+          <span class="footer-step-hint">Tip: Use <strong>←</strong> / <strong>→</strong> keys to step through code. Click any line number to view assignments.</span>
+          <span class="footer-active-indicator" id="footer-active-indicator">Ready</span>
+        </footer>
+      </section>
+
+      <!-- Right Panel: Inspector Tabs (Variables, AST, Call Stack, Event Log) -->
+      <aside class="panel panel-inspector" id="panel-inspector">
+        <div class="inspector-tabs-header" role="tablist">
+          <button class="tab-btn active" id="tab-btn-vars" role="tab" aria-selected="true" aria-controls="tab-vars">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <span>Variables &amp; State</span>
+          </button>
+
+          <button class="tab-btn" id="tab-btn-ast" role="tab" aria-selected="false" aria-controls="tab-ast">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="6" y1="3" x2="6" y2="15"></line>
+              <circle cx="18" cy="6" r="3"></circle>
+              <circle cx="6" cy="18" r="3"></circle>
+              <path d="M18 9a9 9 0 0 1-9 9"></path>
+            </svg>
+            <span>AST Analysis</span>
+          </button>
+
+          <button class="tab-btn" id="tab-btn-stack" role="tab" aria-selected="false" aria-controls="tab-stack">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+            <span>Call Stack</span>
+          </button>
+
+          <button class="tab-btn" id="tab-btn-events" role="tab" aria-selected="false" aria-controls="tab-events">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 14 14"></polyline>
+            </svg>
+            <span>Event Log</span>
+          </button>
+        </div>
+
+        <div class="inspector-tabs-body">
+          <!-- TAB 1: Variables & State -->
+          <div class="tab-content active" id="tab-vars" role="tabpanel" aria-labelledby="tab-btn-vars">
+            <!-- Recently Modified Banner -->
+            <div class="delta-callout" id="delta-callout">
+              <div class="delta-header">
+                <span class="delta-icon">⚡</span>
+                <span class="delta-title">Mutations at Current Step:</span>
+              </div>
+              <div class="delta-tags" id="delta-tags">
+                <span class="empty-hint">None</span>
+              </div>
+            </div>
+
+            <!-- Watchlist Section -->
+            <div class="watchlist-section">
+              <div class="section-title-row">
+                <h3 class="section-subtitle">Watched Variables</h3>
+                <span class="badge" id="watch-count">0</span>
+              </div>
+              <div class="watch-input-row">
+                <input type="text" id="watch-input" placeholder="Watch variable name (e.g. total, x)" class="glass-input">
+                <button id="btn-add-watch" class="btn btn-sm btn-secondary">Pin</button>
+              </div>
+              <div class="watch-chips" id="watch-chips">
+                <span class="empty-hint">No variables pinned yet. Type a name above to watch across time.</span>
+              </div>
+            </div>
+
+            <!-- Variables Filter & Table -->
+            <div class="variables-table-section">
+              <div class="section-title-row">
+                <h3 class="section-subtitle">Reconstructed Frame Locals</h3>
+                <input type="text" id="filter-vars-input" placeholder="Filter variables..." class="glass-input input-sm">
+              </div>
+
+              <div class="table-scroll-container">
+                <table class="data-table" id="variables-table">
+                  <thead>
+                    <tr>
+                      <th class="col-watch">★</th>
+                      <th class="col-name">Identifier</th>
+                      <th class="col-type">Type</th>
+                      <th class="col-value">Value at Step</th>
+                    </tr>
+                  </thead>
+                  <tbody id="variables-tbody">
+                    <tr>
+                      <td colspan="4" class="empty-state">No variables recorded at this step.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Selected Value Inspector (Deep inspect) -->
+            <div class="value-inspector-section" id="value-inspector">
+              <div class="section-title-row">
+                <h3 class="section-subtitle">Object Inspector</h3>
+                <span class="inspector-target" id="inspector-target-name">-</span>
+              </div>
+              <pre class="json-viewer" id="inspector-content">Click any variable above to inspect its complete structure.</pre>
+            </div>
+          </div>
+
+          <!-- TAB 2: AST Analysis Visualizer -->
+          <div class="tab-content" id="tab-ast" role="tabpanel" aria-labelledby="tab-btn-ast">
+            <div class="ast-summary-cards">
+              <div class="metric-card">
+                <span class="metric-number" id="ast-total-assignments">0</span>
+                <span class="metric-label">Assignments</span>
+              </div>
+              <div class="metric-card">
+                <span class="metric-number" id="ast-unique-vars">0</span>
+                <span class="metric-label">Unique Variables</span>
+              </div>
+              <div class="metric-card">
+                <span class="metric-number" id="ast-total-scopes">0</span>
+                <span class="metric-label">Lexical Scopes</span>
+              </div>
+            </div>
+
+            <!-- Assignment Kinds Pills -->
+            <div class="kind-filters-container">
+              <div class="section-title-row">
+                <h3 class="section-subtitle">Grammar Assignment Forms Detected</h3>
+              </div>
+              <div class="kind-pills" id="kind-pills">
+                <!-- Pills rendered here -->
+              </div>
+            </div>
+
+            <!-- Assignments Catalog Table -->
+            <div class="ast-table-section">
+              <div class="section-title-row">
+                <h3 class="section-subtitle">Variable Assignment Catalog</h3>
+                <input type="text" id="ast-filter-input" placeholder="Search targets or kinds..." class="glass-input input-sm">
+              </div>
+
+              <div class="table-scroll-container">
+                <table class="data-table" id="ast-table">
+                  <thead>
+                    <tr>
+                      <th>Line</th>
+                      <th>Target</th>
+                      <th>Kind</th>
+                      <th>Scope</th>
+                      <th>First Def?</th>
+                      <th>Snippet</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ast-tbody">
+                    <tr>
+                      <td colspan="6" class="empty-state">No AST data loaded. Run or select a file to view.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: Call Stack & Frames -->
+          <div class="tab-content" id="tab-stack" role="tabpanel" aria-labelledby="tab-btn-stack">
+            <div class="stack-view" id="stack-view">
+              <div class="section-title-row">
+                <h3 class="section-subtitle">Execution Stack Hierarchy</h3>
+              </div>
+              <div class="stack-frames-list" id="stack-frames-list">
+                <!-- Frame cards rendered here -->
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: Event Timeline Log -->
+          <div class="tab-content" id="tab-events" role="tabpanel" aria-labelledby="tab-btn-events">
+            <div class="events-log-container">
+              <div class="section-title-row">
+                <h3 class="section-subtitle">Recorded Execution Sequence</h3>
+                <input type="text" id="events-filter-input" placeholder="Filter by func or variable..." class="glass-input input-sm">
+              </div>
+
+              <div class="table-scroll-container">
+                <table class="data-table" id="events-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Line</th>
+                      <th>Function</th>
+                      <th>Frame</th>
+                      <th>Mutations</th>
+                    </tr>
+                  </thead>
+                  <tbody id="events-tbody">
+                    <!-- Events list rendered dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Modal: Live Trace Script / Playground -->
+  <dialog id="modal-trace" class="glass-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-icon">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          <h2 class="modal-title">Live Script Tracer &amp; Playground</h2>
+        </div>
+        <button id="btn-close-modal-trace" class="modal-close-btn" aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-desc">
+          Execute any Python script through PyChronicle's time-travel engine. Variable state deltas and AST mappings will be captured into SQLite and loaded immediately.
+        </p>
+
+        <div class="modal-controls-row">
+          <div class="control-group">
+            <label for="example-picker" class="control-label">Load Template Script:</label>
+            <select id="example-picker" class="glass-select">
+              <option value="">-- Choose Example --</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="trace-target-db" class="control-label">Save To SQLite File:</label>
+            <input type="text" id="trace-target-db" value="history.sqlite3" class="glass-input">
+          </div>
+        </div>
+
+        <div class="code-editor-wrapper">
+          <div class="editor-header">
+            <span>Python Script Code (Interactive Editor)</span>
+            <span class="editor-badge" id="editor-char-count">0 chars</span>
+          </div>
+          <textarea id="trace-code-input" class="code-textarea" spellcheck="false" placeholder="# Type or paste Python code to trace and time-travel debug..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btn-cancel-trace" class="btn btn-secondary">Cancel</button>
+        <button id="btn-run-trace" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Run &amp; Time-Travel Debug</span>
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal: Keyboard Shortcuts Cheat Sheet -->
+  <dialog id="modal-shortcuts" class="glass-modal">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h2 class="modal-title">Keyboard Navigation</h2>
+        <button id="btn-close-modal-shortcuts" class="modal-close-btn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="shortcut-list">
+          <div class="shortcut-row">
+            <kbd>→</kbd> or <kbd>L</kbd>
+            <span>Step Forward one event</span>
+          </div>
+          <div class="shortcut-row">
+            <kbd>←</kbd> or <kbd>H</kbd>
+            <span>Step Backward one event</span>
+          </div>
+          <div class="shortcut-row">
+            <kbd>Space</kbd>
+            <span>Play / Pause auto-playback</span>
+          </div>
+          <div class="shortcut-row">
+            <kbd>Home</kbd>
+            <span>Jump to first execution event</span>
+          </div>
+          <div class="shortcut-row">
+            <kbd>End</kbd>
+            <span>Jump to final execution event</span>
+          </div>
+          <div class="shortcut-row">
+            <kbd>1</kbd> - <kbd>4</kbd>
+            <span>Switch Inspector Tabs (Vars, AST, Stack, Log)</span>
+          </div>
+          <div class="shortcut-row">
+            <kbd>Esc</kbd>
+            <span>Close modals / Unfocus inputs</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
