@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Pytest & testing cache
 # Virtual environments
 .venv/
 env/
@@ -14,6 +15,23 @@ ENV/
 .coverage
 htmlcov/
 
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Packaging & archives
+*.zip
+*.egg-info/
+dist/
+build/
+
+# Environment / IDE
+.venv/
+env/
+.env
+.vscode/
+.idea/
 # macOS system files
 .DS_Store
 .AppleDouble
